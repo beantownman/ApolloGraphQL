@@ -1,0 +1,150 @@
+# Schema Configuration
+# Enables Apollo Federation and Connectors features
+extend schema
+@link(url: "https://specs.apollo.dev/federation/v2.10", import: ["@key"])
+@link(url: "https://specs.apollo.dev/connect/v0.1", import: ["@source", "@connect"])
+
+# Data Source Configuration
+# Defines the REST API endpoint for listings
+@source(
+    name: "listings"
+    http: {
+        baseURL: "https://airlock-listings.demo-api.apollo.dev/"
+    }
+)
+
+# Root Query Type
+# Defines the entry points for querying listings
+type Query {
+    # Fetches featured listings
+    GetFeaturedListing: [Listing!]!
+    @connect(
+        source: "listings"
+        http: { GET: "/featured-listings" }
+        selection: """
+            id
+            title
+            numOfBeds
+            costPerNight
+            closedForBooking: closedForBookings
+            description
+            photoThumbnail: photoThumbnails
+            latitude
+            longitude
+          """
+    )
+
+    # Fetches a specific listing by ID
+    listings(id: ID!): Listing
+    @connect(
+        source: "listings"
+        http: { GET: "/listings/{$args.id}" }
+        selection: """
+            id
+            title
+            numOfBeds
+            costPerNight
+            closedForBooking: closedForBookings
+            description
+            photoThumbnail: photoThumbnails
+            latitude
+            longitude
+        """
+        entity: true
+    )
+}
+
+# Listing Type
+# Represents a property listing with all its details
+type Listing @key(fields: "id") {
+    # Unique identifier for the listing
+    id: ID!
+    # Title of the listing
+    title: String!
+    # Number of beds in the property
+    numOfBeds: Int
+    # Cost per night for the property
+    costPerNight: Float
+    # Whether the property is available for booking
+    closedForBooking: Boolean
+    # Detailed description of the property
+    description: String
+    # URL to the property's thumbnail image
+    photoThumbnail: String
+    # Geographic coordinates of the property
+    latitude: Float
+    longitude: Float
+    # List of amenities available in the property
+    amenities: [Amenity!]!
+        @connect(
+            source: "listings"
+            http: { GET: "/listings/{$this.id}/amenities" }
+            selection: """
+                id
+                category
+                name
+            """
+        )
+}
+
+# Amenity Type
+# Represents a feature or facility available in a listing
+type Amenity {
+    # Unique identifier for the amenity
+    id: ID!
+    # Category of the amenity (e.g., "Kitchen", "Bathroom")
+    category: String!
+    # Name of the amenity (e.g., "Microwave", "Bathtub")
+    name: String!
+}
+
+input CreateListingInput {
+    title: String!
+    numOfBeds: Int
+    costPerNight: Float
+}
+type createListingResponse {
+    listing: Listing!
+    
+}
+
+type Mutation {
+    createListing(input: CreateListingInput!): createListingResponse!
+     @connect(
+        source: "listings"
+        http: { POST: "/listings", 
+        headers: [
+            { name: "Api-Key", value: "Api-Key" }
+            ]
+        body: """
+        listing: {
+        title: $args.input.title
+        numOfBeds: $args.input.numOfBeds
+        costPerNight: $args.input.costPerNight
+         }
+        """
+        }
+        selection: """
+            listing: {
+            id
+            title
+            numOfBeds
+            costPerNight
+            closedForBooking: closedForBookings
+            description
+            photoThumbnail: photoThumbnails
+            latitude
+            longitude   
+            amenities: {
+                id
+                category
+                name
+            }
+         }
+
+        """
+    )
+}  
+
+
+
