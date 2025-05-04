@@ -27,7 +27,7 @@ extend schema
   }
 )
 
-# ✏️ Replace this example type with your own object type.
+# ✏️ Product Schema
 type Product {
   id: ID!
   name: String
